@@ -1,3 +1,4 @@
+
 import request from 'supertest';
 import app from '../src/server';
 import { resetTasks } from '../src/taskStore';
@@ -11,8 +12,8 @@ interface Task {
 
 describe('Task Board API', () => {
   // Reset tasks before each test to ensure a clean state
-  beforeEach(() => {
-    resetTasks();
+  beforeEach(async () => {
+    await resetTasks();
   });
 
   // 1. Test for /health endpoint
@@ -30,7 +31,7 @@ describe('Task Board API', () => {
       const res = await request(app)
         .post('/tasks')
         .send({ title: '   ' }); // Sending only spaces
-      
+
       // The bug in taskStore.ts will cause this check to fail.
       // The server will incorrectly return 201 Created instead of 400.
       expect(res.status).toBe(400);
@@ -42,7 +43,7 @@ describe('Task Board API', () => {
       const res = await request(app)
         .post('/tasks')
         .send({ title: newTaskTitle });
-      
+
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty('id');
       expect(res.body.title).toBe(newTaskTitle);
@@ -53,8 +54,12 @@ describe('Task Board API', () => {
   // 4. Test for toggling a task's 'done' state
   describe('PATCH /tasks/:id/toggle', () => {
     it('should toggle the done state of a task and return the updated task', async () => {
-      const taskId = 1; // Assumes a task with ID 1 exists from resetTasks()
-      
+      // Create a task first
+      const createRes = await request(app)
+        .post('/tasks')
+        .send({ title: 'Task to Toggle' });
+      const taskId = createRes.body.id;
+
       // First, get the initial state
       let res = await request(app).get('/tasks');
       const initialTask = res.body.find((t: Task) => t.id === taskId);
@@ -62,7 +67,7 @@ describe('Task Board API', () => {
 
       // Now, toggle it
       res = await request(app).patch(`/tasks/${taskId}/toggle`);
-      
+
       expect(res.status).toBe(200);
       expect(res.body.id).toBe(taskId);
       expect(res.body.done).toBe(!initialDoneState);
@@ -83,7 +88,11 @@ describe('Task Board API', () => {
   // 5. Test for deleting a task
   describe('DELETE /tasks/:id', () => {
     it('should return 204 No Content and remove the task', async () => {
-      const taskId = 2; // Task with ID 2: "Fix the Failing Test"
+      // Create a task first
+      const createRes = await request(app)
+        .post('/tasks')
+        .send({ title: 'Task to Delete' });
+      const taskId = createRes.body.id;
 
       // Verify the task exists before deleting
       let res = await request(app).get('/tasks');

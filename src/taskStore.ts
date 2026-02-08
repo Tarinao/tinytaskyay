@@ -102,3 +102,17 @@ export const deleteTask = (id: number): Promise<boolean> => {
     });
   });
 };
+
+export const resetTasks = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run('DELETE FROM tasks', (err) => {
+        if (err) reject(err);
+      });
+      db.run('DELETE FROM sqlite_sequence WHERE name="tasks"', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  });
+};
